@@ -1,0 +1,430 @@
+---------------------------------------------- 1.1.Install JDK----------------------------------------------
+
+sudo vim .bashrc
+
+export JAVA_HOME=/home/osv/jdk1.7.0_79
+export HADOOP_DEV_HOME=/home/mona/cluster/hadoop
+export PATH=$PATH:$JAVA_HOME/bin
+export PATH=$PATH:$HADOOP_DEV_HOME/bin
+export PATH=$PATH:$HADOOP_DEV_HOME/sbin
+export HADOOP_MAPARED_HOME=${HADOOP_DEV_HOME}
+export HADOOP_COMMON_HOME=${HADOOP_DEV_HOME}
+export HADOOP_HDFS_HOME=${HADOOP_DEV_HOME}
+export YARN_HOME=${HADOOP_DEV_HOME}
+export HADOOP_CONF_DIR=${HADOOP_DEV_HOME}/etc/hadoop
+export HDFS_CONF_DIR=${HADOOP_DEV_HOME}/etc/hadoop
+export YARN_CONF_DIR=${HADOOP_DEV_HOME}/etc/hadoop
+-----------------------------------------------------------------------------------------------------------
+
+---------------------------------------------- 1.2.Modify Hosts----------------------------------------------
+
+sudo vim /etc/hosts
+
+127.0.0.1       localhost
+192.168.0.20    osv-00
+192.168.0.21    osv-01
+192.168.0.22    osv-02
+------------------------------------------------------------------------------------------------------------
+---------------------------------------------- 1.3.SSH--------------------------------------------------------
+
+sudo apt-get install openssh-server 
+sudo apt-get install openssh-client
+
+ssh-keygen -t rsa -P ""
+cat $HOME/.ssh/id_rsa.pub >> $HOME/.ssh/authorized_keys
+chmod 700 ~/.ssh && chmod 600 ~/.ssh/*
+
+设置主机->从机的无密码登录
+	
+ cat ~/.ssh/id_rsa.pub | ssh hadoop@slave1 'cat - >> ~/.ssh/authorized_keys'	
+
+ cat ~/.ssh/id_rsa.pub | ssh hadoop@slave2 'cat - >> ~/.ssh/authorized_keys'
+
+设置从机->主机的无密码登录
+
+分别在slave1、slave2上执行：
+
+cat ~/.ssh/id_rsa.pub | ssh hadoop@master 'cat - >> ~/.ssh/authorized_keys'
+-------------------------------------------------------------------------------------------------------------
+
+
+----------------------------------------------2.1.Modify Hadoop Config----------------------------------------------
+
+
+**********************************core-site.xml**********************************
+sudo vim core-site.xml 
+
+<configuration>
+
+        <property>
+                <name>fs.defaultFS</name>
+                <value>hdfs://osv-00:9000</value>
+        </property>
+
+        <property>
+                <name>hadoop.tmp.dir</name>
+                <value>/home/mona/cluster/tmp/hadoop</value>
+        </property>
+
+        <property>
+                <name>io.file.buffer.size</name>
+                <value>131072</value>
+        </property>
+
+</configuration>
+
+
+**********************************hdfs-site.xml**********************************
+
+sudo vim hdfs-site.xml 
+
+<configuration>
+
+        <property>
+                <name>dfs.nameservices</name>
+                <value>osv-00</value>
+        </property>
+
+        <property>
+                <name>dfs.namenode.name.dir</name>
+                <value>/home/mona/cluster/tmp/hdfs/name</value>
+        </property>
+
+        <property>
+                <name>dfs.datanode.data.dir</name>
+                <value>/home/mona/cluster/tmp/hdfs/data</value>
+        </property>
+
+        <property>
+                <name>dfs.replication</name>
+                <value>3</value>
+        </property>
+
+        <property>
+                <name>dfs.namenode.http-address</name>
+                <value>osv-00:50070</value>
+        </property>
+
+        <property>
+                <name>dfs.blocksize</name>
+                <value>268435456</value>
+        </property>
+
+        <property>
+                <name>dfs.namenode.handler.count</name>
+                <value>100</value>
+        </property>
+
+</configuration>
+
+**********************************yarn-site.xml**********************************
+
+sudo vim yarn-site.xml
+
+<configuration>
+
+<!-- Site specific YARN configuration properties -->
+
+    <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+    </property>
+
+    <property>
+        <name>yarn.resourcemanager.address</name>
+        <value>osv-00:9002</value>
+    </property>
+
+    <property>
+        <name>yarn.resourcemanager.scheduler.address</name>
+        <value>osv-00:9003</value>
+    </property>
+
+    <property>
+        <name>yarn.resourcemanager.admin.address</name>
+        <value>osv-00:9004</value>
+    </property>
+
+    <property>
+        <name>yarn.resourcemanager.resource-tracker.address</name>
+        <value>osv-00:9005</value>
+    </property>
+
+    <property>
+        <name>yarn.resourcemanager.webapp.address</name>
+        <value>osv-00:9006</value>
+    </property>
+
+    <property>
+        <name>yarn.scheduler.maximum-allocation-mb</name>
+        <value>4096</value>
+    </property>
+
+</configuration>
+
+**********************************mapred-site.xml**********************************
+sudo vim mapred-site.xml
+
+<configuration>
+
+        <property>
+                <name>mapred.job.tracker</name>
+                <value>osv-00:9001</value>
+        </property>
+
+        <property>
+                <name>mapreduce.framework.name</name>
+                <value>yarn</value>
+        </property>
+
+        <property>
+                <name>mapreduce.map.memory.mb</name>
+                <value>1024</value>
+        </property>
+
+        <property>
+                <name>mapreduce.map.java.opts</name>
+                <value>-Xmx1024M</value>
+        </property>
+
+        <property>
+                <name>mapreduce.reduce.memory.mb</name>
+                <value>3072</value>
+        </property>
+
+        <property>
+                <name>mapreduce.reduce.java.opts</name>
+                <value>-Xmx2560M</value>
+        </property>
+
+        <property>
+                <name>mapreduce.task.io.sort.mb</name>
+                <value>512</value>
+        </property>
+
+        <property>
+                <name>mapreduce.task.io.sort.factor</name>
+                <value>100</value>
+        </property>
+
+        <property>
+                <name>mapreduce.reduce.shuffle.parallelcopies</name>
+                <value>50</value>
+        </property>
+
+</configuration>
+
+**********************************hadoop-env.sh**********************************
+ 
+sudo vim hadoop-env.sh 
+
+export JAVA_HOME=/home/osv/jdk1.7.0_79
+
+**********************************slaves**********************************
+sudo vim slaves
+
+osv-01
+osv-02
+
+-------------------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------- 2.2.Sync Hadoop Config to Slaves-------------------------------
+使用scp命令进行从本地到远程（或远程到本地）的文件拷贝操作：
+
+scp -r /home/mona/cluster/hadoop/     osv-01:/home/mona/cluster/
+scp -r /home/mona/cluster/hadoop/     osv-02:/home/mona/cluster/
+
+注意：三台机器上都进行相同的配置，都放在相同的路径下。
+--------------------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------- 2.3.Start Hadoop Cluster---------------------------------------
+
+进入master的~/hadoop目录，执行以下操作：
+
+./bin/hdfs namenode -format
+
+./sbin/start-all.sh
+
+++++++++++++++++++++++++++++++++jps Output++++++++++++++++++++++++++++++++
+mona@osv-00:~$ jps
+3595 ApplicationHistoryServer
+14922 DataNode
+12995 NameNode
+13351 ResourceManager
+
+mona@osv-01:~$ jps
+7286 DataNode
+7441 NodeManager
+
+mona@osv-02:~$ jps
+6509 NodeManager
+6354 DataNode
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+--------------------------------------------------------------------------------------------------------------
+
+---------------------------------------------- 3.1.Modify ZooKeeper Config------------------------------------
+
+**********************************zoo.cfg**********************************
+sudo vim zoo.cfg
+
+dataDir=/home/mona/cluster/tmp/zookeeper/data
+server.1 = osv-00:2888:3888
+server.2 = osv-01:2888:3888
+server.3 = osv-02:2888:3888
+
+dataLogDir=/home/mona/cluster/tmp/zookeeper/log
+
+********************************** myid ***********************************
+在dataDir目录下新建myid文件，输入一个数字（master为1，slave1为2，slave2为3）：
+	
+mkdir /home/mona/cluster/tmp/zookeeper/data
+echo "1" > /home/hadoop/zookeeper/data/myid
+
+同样使用scp命令进行远程复制，只不过要修改每个节点上myid文件中的数字。
+--------------------------------------------------------------------------------------------------------------
+
+---------------------------------------------- 3.2.Start ZooKeeper ----------------------------------------------
+
+
+在ZooKeeper集群的每个结点上，执行启动ZooKeeper服务的脚本：
+
+./zookeeper/bin/zkServer.sh start
+./zookeeper/bin/zkServer.sh status
+
+++++++++++++++++++++++++++++++++jps Output++++++++++++++++++++++++++++++++
+mona@osv-00:~/cluster/zookeeper/bin$ jps
+3150 QuorumPeerMain
+3595 ApplicationHistoryServer
+14922 DataNode
+12995 NameNode
+
+mona@osv-01:~/cluster/zookeeper/bin$ jps
+12608 QuorumPeerMain
+7286 DataNode
+7441 NodeManager
+
+mona@osv-02:~/cluster/zookeeper/bin$ jps
+6509 NodeManager
+11312 QuorumPeerMain
+6354 DataNode
+
+
+mona@osv-00:~/cluster/zookeeper/bin$ ./zkServer.sh status
+JMX enabled by default
+Using config: /home/mona/cluster/zookeeper/bin/../conf/zoo.cfg
+Mode: follower
+
+mona@osv-01:~/cluster/zookeeper/bin$ ./zkServer.sh status
+JMX enabled by default
+Using config: /home/mona/cluster/zookeeper/bin/../conf/zoo.cfg
+Mode: leader
+
+mona@osv-02:~/cluster/zookeeper/bin$ ./zkServer.sh status
+JMX enabled by default
+Using config: /home/mona/cluster/zookeeper/bin/../conf/zoo.cfg
+Mode: follower
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+--------------------------------------------------------------------------------------------------------------
+
+---------------------------------------------- 4.1.Modify HBase Config ---------------------------------------
+
+
+**********************************hbase-site.xml**********************************
+
+sudo vim hbase-site.xml 
+
+<configuration>
+ <property>
+    <name>hbase.rootdir</name>
+    <value>hdfs://osv-00:9000/hbase</value>
+  </property>
+
+  <property>
+    <name>hbase.cluster.distributed</name>
+    <value>true</value>
+  </property>
+
+ <property>
+    <name>hbase.tmp.dir</name>
+    <value>/home/mona/cluster/tmp/hbase</value>
+  </property>
+
+ <property>
+    <name>hbase.zookeeper.quorum</name>
+    <value>osv-00,osv-01,osv-02</value>
+  </property>
+
+ <property>
+    <name>hbase.zookeeper.property.clientPort</name>
+    <value>2181</value>
+  </property>
+
+ <property>
+    <name>hbase.zookeeper.property.dataDir</name>
+    <value>/home/mona/cluster/tmp/zookeeper/data</value>
+  </property>
+
+ <property>
+    <name>hbase.master.port</name>
+    <value>60000</value>
+ </property>
+
+</configuration>
+
+**********************************regionservers**********************************
+
+sudo vim regionservers 
+
+osv-01
+osv-02
+
+********************************** hbase-env.sh**********************************
+sudo vim hbase-env.sh 
+	
+export JAVA_HOME=/home/osv/jdk1.7.0_79
+export HBASE_CLASSPATH=/home/mona/cluster/hadoop/etc/hadoop
+export HBASE_MANAGES_ZK=false
+--------------------------------------------------------------------------------------------------------------
+
+---------------------------------------------- 4.2.Sync Hbase Config to Slaves--------------------------------
+
+使用scp命令进行从本地到远程（或远程到本地）的文件拷贝操作：
+
+scp -r /home/mona/cluster/hbase/     osv-01:/home/mona/cluster/
+scp -r /home/mona/cluster/hbase/     osv-02:/home/mona/cluster/
+
+注意：三台机器上都进行相同的配置，都放在相同的路径下。
+--------------------------------------------------------------------------------------------------------------
+
+---------------------------------------------- 4.3.Start Hbase ----------------------------------------------
+
+./hbase/bin/start-base.sh
+
+++++++++++++++++++++++++++++++++jps Output++++++++++++++++++++++++++++++++
+mona@osv-00:~$ jps
+3150 QuorumPeerMain
+408 Jps
+3595 ApplicationHistoryServer
+14922 DataNode
+12995 NameNode
+7021 HMaster
+13351 ResourceManager
+
+mona@osv-01:~$ jps
+12608 QuorumPeerMain
+13447 HRegionServer
+18480 Jps
+7286 DataNode
+7441 NodeManager
+
+mona@osv-02:~$ jps
+16796 Jps
+11762 HRegionServer
+6509 NodeManager
+11312 QuorumPeerMain
+6354 DataNode
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+--------------------------------------------------------------------------------------------------------------
